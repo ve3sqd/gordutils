@@ -158,7 +158,7 @@ def populate_dict_all_dups_and_display():
 
 
 def display_all_dups():
-     start_pos = len(os.path.expanduser("~")) + 1
+     start_pos = len(my_homedir) + 1
      if len(all_dups) > 0:
           for x in all_dups:
                     #print the number, full filename, size of the file in bytes, and checksum
@@ -332,7 +332,6 @@ def process_checksums():
      
 def create_update_checksum_dict(verbose_mode = True):
      global checksum_dict    
-     my_homedir = os.path.expanduser("~")
      obj_dir = os.path.join(my_homedir,'.gordutils')
      dict_name = replace_slash_with_underscore(search_directory)        
      checksum_file = os.path.join(obj_dir, dict_name + '.pkl')     
@@ -604,7 +603,7 @@ def remove_entry_from_checksum_dict(my_filename):
 
 def process_extension(): #handle menu item 'delete files of a particular extension'
      global refresh_filelist_req
-     start_pos = len(os.path.expanduser("~")) + 1
+     start_pos = len(my_homedir) + 1
      my_exten = input('\nEnter extension to delete (no leading dot): ')
      my_exten = '.' + my_exten
      valid_input = 0
@@ -788,7 +787,6 @@ def get_source_and_destination():
           action_requested = input('move or copy: ')
      if action_requested == 'move':
           refresh_filelist_req = 1
-     my_homedir = os.path.expanduser("~")
      print('\nSpecify whether to copy/move all or a specific extension (no leading dot) ')
      acting_extension = input('Enter extension or all for everything: ')
      if not acting_extension == 'all':
@@ -912,7 +910,6 @@ def do_file_moves(files_to_move, action, target_dir):
 def change_active_directory():
      global search_directory, refresh_filelist_req
      base_dir_exists = False
-     my_homedir = os.path.expanduser("~")
      gordutils = os.path.join(my_homedir, '.gordutils')     
      work_dir_file = os.path.join(gordutils, 'gu_working_path')    
      print('\nPlease enter the directory containing the file system you want to act on: ')
@@ -946,7 +943,7 @@ def checkout_files():
      keep_going = check_destination_directory()
      if keep_going:
           source_dir, requested_extension = get_source_and_extension()
-          target_dir = os.path.expanduser("~") + '/checkout_dir/'
+          target_dir = my_homedir + '/checkout_dir/'
           print('\nThe files will be copied to directory: ', target_dir) 
           files_to_checkout = create_file_checkout_list(source_dir, target_dir, requested_extension)
           copy_count = special_copy_files_to_checkout(files_to_checkout)          
@@ -957,7 +954,7 @@ def checkout_files():
 def check_destination_directory():
      # the destination directory needs to be emtpy before beginning
      myinput = ''
-     target_dir = os.path.expanduser("~") + '/checkout_dir/'
+     target_dir = my_homedir + '/checkout_dir/'
      if os.path.isdir(target_dir):     
           if not os.listdir(target_dir) == []:     #the target directory is not empty
                print('\nDestination directory ',target_dir, ' is not empty')
@@ -971,7 +968,7 @@ def check_destination_directory():
                     for x in os.listdir(target_dir):
                          file_to_delete = os.path.join(target_dir, x)                         
                          delete_item_from_disk(file_to_delete)
-                    delete_item_from_disk(os.path.join(os.path.expanduser("~"), '.gordutils', 'checkout_file.pkl'))
+                    delete_item_from_disk(os.path.join(my_homedir, '.gordutils', 'checkout_file.pkl'))
                     return True
           else:
                return True
@@ -1028,7 +1025,7 @@ def special_copy_files_to_checkout(files_to_checkout):
      #  first item is the original file
      #  second item is the destination file
      copy_count = 0
-     dest_directory = os.path.expanduser("~") + '/checkout_dir/'
+     dest_directory = my_homedir + '/checkout_dir/'
      for x in files_to_checkout:          
           (dirname, filename) = os.path.split(x[0])   #filename is the filename only
           shortname, extension = os.path.splitext(filename)   #shortname is filename w/o extension, extension = extension
@@ -1046,7 +1043,6 @@ def special_copy_files_to_checkout(files_to_checkout):
 
 
 def write_checkout_filelist_to_disk(files_to_checkout):
-     my_homedir = os.path.expanduser("~")
      file_dir = os.path.join(my_homedir,'.gordutils')
      save_obj(file_dir, files_to_checkout, 'checkout_file')
      
@@ -1058,7 +1054,6 @@ def write_checkout_filelist_to_disk(files_to_checkout):
 def checkin_files():
      num_deleted = 0
      #load the checkout list
-     my_homedir = os.path.expanduser("~")
      file_dir = os.path.join(my_homedir,'.gordutils')
      my_checkout_list = load_obj(file_dir, 'checkout_file')     
      # for each destination file, check if it is there
@@ -1184,7 +1179,6 @@ def play_choice(mychoice):   #launch a program to play or view the chosen file
 def first_time_setup():
      global search_directory, move_to_directory     
      base_dir_exists = False
-     my_homedir = os.path.expanduser("~")
      gordutils = os.path.join(my_homedir, '.gordutils')
      if not os.path.isdir(gordutils):
           os.makedirs(gordutils)
