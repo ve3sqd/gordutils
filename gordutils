@@ -1,0 +1,1227 @@
+#!/usr/bin/python3
+
+import os
+import sys
+import random
+import hashlib
+import shutil
+import pickle
+import locale
+
+
+
+# set the locale and module path
+locale.setlocale(locale.LC_ALL, '')
+my_homedir = os.path.expanduser("~")
+sys.path.insert(0, os.path.join(my_homedir, 'python/imports'))
+
+
+
+#---------------------------------------------------------------------------------------------------------
+#  Declaration of global variables
+#---------------------------------------------------------------------------------------------------------
+
+# generic 
+search_directory = '' #base directory for file operations (set first time or from menu)
+move_to_directory = ''     #move here instead of deleting
+#--------------------------------------------------------------------------------------------------
+# process duplicate filenames
+fullfilelist=[]     #contains all of the filepaths in the search directories
+dupset=set()        #contains all of the duplicate filenames (non repeated)
+all_dups={}         #contains a dictionary of filenumber/filepath pairs
+refresh_filelist_req = 1  #do we need to refresh the file list?
+#---------------------------------------------------------------------------------------------------
+# process duplicate checksums
+checksum_dict = {}
+chosen_checksum = 0
+
+
+             
+def display_main_menu():         
+     fmt = '{0:>3s} {1}'
+     print("\nGORD'S FILE UTILITIES")
+     print(fmt.format('1.', 'Process duplicate filenames'))
+     print(fmt.format('2.', 'Process duplicate checksums'))
+     print(fmt.format('3.', 'Delete files with a specific extension and size'))
+     print(fmt.format('4.', 'Remove empty directories'))
+     print(fmt.format('5.', 'Display file information'))
+     print(fmt.format('6.', 'Stack by filetype'))
+     print(fmt.format('7.', 'Move/copy files'))
+     print(fmt.format('8.', 'Change active directory'))
+     print(fmt.format('9.', 'Print active directory'))
+     print(fmt.format('10.', 'Checkout filetype'))
+     print(fmt.format('11.', 'Checkin filetype'))
+     print(fmt.format('12.', 'Quit'))   
+
+def get_main_choice():
+     myinput=0
+     main_valid_choice=(1,2,3,4,5,6,7,8,9,10,11,12)      #contains all of the valid main menu choices
+     while myinput not in main_valid_choice:
+          display_main_menu()
+          myinput = input('\nEnter choice: ')
+          try:
+               myinput = int(myinput)
+          except:
+               myinput = 0
+     return myinput
+
+def execute_main_choice(choice):
+     if choice == 1:
+          process_dup_filenames()
+     elif choice == 2:
+          process_checksums()
+     elif choice == 3:
+          process_extension()
+     elif choice == 4:
+          remove_empty_directories(root_dir = search_directory)
+     elif choice == 5:
+          display_file_stats()
+     elif choice == 6:
+          stack_filetypes()
+     elif choice == 7:
+          move_or_copy_files()
+     elif choice == 8:
+          change_active_directory()
+     elif choice == 9:
+          print_working_directory()
+     elif choice == 10:
+          checkout_files()
+     elif choice == 11:
+          checkin_files()
+     elif choice == 12:
+          sys.exit(0);
+          
+
+#---------------------------------------------------------------------------------------------------
+#  Process duplicate filenames
+#---------------------------------------------------------------------------------------------------
+
+def process_dup_filenames():
+     global refresh_filelist_req
+     refresh_filelist_req = 1
+     find_dups()    #populate dupset and fileset
+     populate_dict_all_dups_and_display() #show onscreen the files from one duplicate filename
+     execute_file_action_choice(get_file_action_menu_choice())
+     
+     
+
+def find_dups(print_stats = True):
+     #move all the files to a set, adding them to a dups list if they already exist in the set
+     #populate fileset and dupset
+     #fileset contains a set of unique filenames
+     #dupset contains a (unique) set of duplicates 
+     global refresh_filelist_req, dupset
+     fileset=set()       #contains all filenames from disk (no duplicates because it's a set)     
+     dupset.clear()     
+     if refresh_filelist_req:
+          populate_fullfilelist(search_directory)
+     refresh_filelist_req = 0     
+     setlength=len(fileset)
+     for x in range(len(fullfilelist)):
+          (dirname, filename) = os.path.split(fullfilelist[x])
+          fileset.add(filename)
+          if setlength == len(fileset):
+               dupset.add(filename)
+          else:
+               setlength += 1
+     if print_stats:
+          print_dup_stats(len(fullfilelist), len(fileset))
+     return (len(fullfilelist), len(fileset))
+
+     
+     
+def print_dup_stats(all_files, unique_files):     
+     print('\n{0:32s} {1:n}'.format('Number of files: ', all_files))
+     print('{0:32s} {1:n}'.format('Number of unique filenames: ',unique_files))
+     print('{0:32s} {1:n}\n'.format('Number of duplicate filenames:', all_files - unique_files))
+     
+                     
+
+def populate_dict_all_dups_and_display():    
+     global all_dups     
+     all_dups.clear()    #all_dups is a global dictionary of number:filepath pairs
+     if len(dupset) == 0:
+          print('\nNo duplicates found!!\n')          
+          return             
+     counter = 0
+     print()
+     current_processing_duplicate = random.sample(dupset,1)[0]
+     print(60*'-','DUPLICATE FILENAME DELETE\n')     
+     print('processing',current_processing_duplicate)
+     for x in range(len(fullfilelist)):
+          (dirname, filename) = os.path.split(fullfilelist[x])
+          if filename == current_processing_duplicate:
+               counter += 1
+               all_dups[counter] = fullfilelist[x]
+     display_all_dups()
+   
+
+
+def display_all_dups():
+     start_pos = len(os.path.expanduser("~")) + 1
+     if len(all_dups) > 0:
+          for x in all_dups:
+                    #print the number, full filename, size of the file in bytes, and checksum
+                    dir_name = all_dups[x][start_pos:]     #remove the first 2 directories from the path to make it shorter
+                    print('{0:3d} {1:161s} {2:15d} {3}'.format(x, dir_name, os.path.getsize(all_dups[x]), compute_sha1(all_dups[x])))
+          print()
+     else:
+          print('\nNo duplicates found!!\n')
+
+
+def reset_all_dup_keys():     #renumber all of the keys in all_dups to close the gap after a delete
+     global all_dups
+     keypos = 0
+     for key in all_dups:
+          keypos += 1
+          all_dups[keypos] = all_dups.pop(key)
+         
+
+def get_file_action_menu_choice():
+     valid_choice_entered = 0
+     myinput=0
+     if len(dupset) == 0:          
+          return 'm'     #return to the main menu if there are no duplicates to process
+     while not valid_choice_entered:
+          display_file_action_instructions()
+          myinput = input('\nEnter choice: ')
+          if len(myinput) > 0:
+               if myinput in ['n','m','dall']:
+                     valid_choice_entered = 1
+               elif myinput[0] == 'd':
+                    try:
+                         mynumber = int(myinput[1:])
+                    except:
+                         valid_choice_entered = 0
+                    else:
+                         if mynumber > 0 and mynumber <= len(all_dups):
+                              valid_choice_entered = 1
+                         else:
+                              print('\nvalue entered is out of range\n')
+                         
+               elif myinput[0] in ('k', 'p'):
+                    try:
+                         mynumber = int(myinput[1:])
+                    except:
+                         valid_choice_entered = 0
+                    else:
+                         if mynumber > 0 and mynumber <= len(all_dups):
+                              valid_choice_entered = 1
+                         else:
+                              print('\nvalue entered is out of range\n')
+               
+               elif myinput[0] == 'r':
+                    valid_choice_entered = 1
+               else:
+                    valid_choice_entered = 0
+     return myinput     
+     
+     
+def execute_file_action_choice(mychoice):
+     if mychoice == 'n': #user wants to display the next duplicate set
+          populate_dict_all_dups_and_display() #show onscreen the files for one duplicate filename
+          execute_file_action_choice(get_file_action_menu_choice())
+     elif mychoice == 'dall':
+          delete_all_files()
+          populate_dict_all_dups_and_display() #show onscreen the files for one duplicate filename
+          execute_file_action_choice(get_file_action_menu_choice())
+     elif mychoice == 'm':
+          print('\nreturning to main menu...')
+     elif mychoice[0] == 'd': #user selects to delete a single file
+          delete_single_file(int(mychoice[1:]))
+          if len(all_dups) == 0:
+               print('\nFilename no longer exists on the disk\n')
+               populate_dict_all_dups_and_display() #show onscreen the files for one duplicate filename
+               execute_file_action_choice(get_file_action_menu_choice())
+          else:    
+               display_all_dups()
+               execute_file_action_choice(get_file_action_menu_choice())
+     elif mychoice[0] == 'k':
+          keep_one_only(int(mychoice[1:]))
+          display_all_dups()
+          execute_file_action_choice(get_file_action_menu_choice())
+     elif mychoice[0] == 'p':
+          play_choice(all_dups[int(mychoice[1:])])
+          execute_file_action_choice(get_file_action_menu_choice())
+     elif mychoice[0] == 'r':
+          display_all_dups()
+          execute_file_action_choice(get_file_action_menu_choice())
+     else:
+          print('Unknown response')
+          display_all_dups()
+          execute_file_action_choice(get_file_action_menu_choice())
+
+     
+     
+
+def delete_single_file(file_number):
+     #define my_filepath and filename
+     my_filepath = all_dups[file_number]
+     (dirname, filename) = os.path.split(my_filepath)
+     print('\ndeleting ',my_filepath)
+     print()     
+     #delete_item_from_disk(my_filepath)
+     move_copy_file('move', my_filepath, move_to_directory)
+     remove_entry_from_fullfilelist(my_filepath)
+     remove_entry_from_all_dups(file_number)
+     reset_all_dup_keys()
+     if len(all_dups) in (0, 1):  #this file is no longer a duplicate     
+          remove_entry_from_dupset(filename)
+     
+            
+     
+def keep_one_only(file_number):    
+     global all_dups
+     if len(all_dups) == 0:
+          print('\nNothing to delete!')
+          return
+     (dirname, filename) = os.path.split(all_dups[1])
+     print()
+     my_saved_item = all_dups.pop(file_number)     
+     for x in all_dups:
+          my_filepath = all_dups[x]
+          print('deleting ',my_filepath)          
+          move_copy_file('move', my_filepath, move_to_directory)
+          remove_entry_from_fullfilelist(my_filepath)                    
+     print()
+     all_dups.clear()
+     all_dups[1] = my_saved_item
+     remove_entry_from_dupset(filename)
+
+
+def delete_all_files():   #delete (move) all files listed in all_dups    
+     if len(all_dups) == 0:
+          print('\nNothing to delete!')
+          return
+     (dirname, filename) = os.path.split(all_dups[1])
+     print()
+     for x in all_dups:
+          my_filepath = all_dups[x]
+          print('deleting ',my_filepath)
+          move_copy_file('move', my_filepath, move_to_directory)
+          remove_entry_from_fullfilelist(my_filepath)
+     remove_entry_from_dupset(filename)
+
+
+def remove_entry_from_all_dups(dupkey):
+     global all_dups
+     try:
+          all_dups.pop(dupkey)
+     except:
+          print('Error while removing deleted item from all_dups')
+          print('exiting...')
+          sys.exit(2)
+
+def remove_entry_from_dupset(entry):
+     global dupset
+     if entry in dupset:
+          dupset.remove(entry)
+
+#------------------------------------------------------------------------------------------------------------
+#  Process checksums
+#------------------------------------------------------------------------------------------------------------
+
+def process_checksums():     
+     create_update_checksum_dict()
+     display_single_checksum_files()
+     if chosen_checksum != -1:
+          execute_checksum_file_action_choice(get_checksum_file_action_menu_choice())
+     else:
+          print('returning to main menu...')
+     
+     
+def create_update_checksum_dict(verbose_mode = True):
+     global checksum_dict    
+     my_homedir = os.path.expanduser("~")
+     obj_dir = os.path.join(my_homedir,'.gordutils')
+     dict_name = replace_slash_with_underscore(search_directory)        
+     checksum_file = os.path.join(obj_dir, dict_name + '.pkl')     
+     if os.path.isfile(checksum_file):  #if the checksum_dict file exists on disk
+          #first remove all the files from checksum_dict that are no longer on disk
+          total_removed = 0
+          if verbose_mode:
+               print('\nchecksum dictionary file found:', checksum_file)
+               print('Loading checksum dictionary...')
+          checksum_dict = load_obj(obj_dir, dict_name)
+          if verbose_mode:
+               print('checksum_dict number of elements:',len(checksum_dict))
+               print('\nremoving files that are no longer on disk...')
+               print('This will take a minute...')
+          populate_fullfilelist(search_directory)
+          number_removed = remove_files_from_checksum_dict(verbose_mode)
+          total_removed += number_removed
+          while number_removed > 0:
+               number_removed = remove_files_from_checksum_dict(verbose_mode)
+               total_removed += number_removed
+          if verbose_mode:
+               print('\nTotal filepaths removed: ',total_removed)
+          #next add any new files on disk with checksum to checksum_dict
+          if verbose_mode:
+               print('\nscanning for new files on disk and adding to checksum_dict')
+          number_added = add_files_to_checksum_dict(verbose_mode)
+          if verbose_mode:
+               print('\nTotal filepaths added: ', number_added)
+               print('\nremoving all empty keys...')
+          #remove all of the empty keys from the dictionary
+          num_empty_keys_removed = remove_empty_dict_keys(verbose_mode)
+          if verbose_mode:
+               print('\nTotal empty keys removed: ', num_empty_keys_removed,'\n')
+          #finally, save the updated dictionary back to disk      
+          save_obj(obj_dir, checksum_dict, dict_name)          
+     else:      #the checksum_dict file does not exist.  Create it.
+          added_count = 0
+          existing_count = 0
+          #remove the contents of the current checksum_dict before building a new one
+          checksum_dict.clear()
+          populate_fullfilelist(search_directory)
+          #populate my_checksum dictionary
+          #each key contains a list of files that match that checksum
+          if verbose_mode:
+               print('\nChecksum file not found:', checksum_file)
+               print('Calculating all checksums... this may take a while\n')          
+          for x in fullfilelist:
+               if verbose_mode:
+                    print('Processing',x)               
+               my_checksum = compute_sha1(x)               
+               if my_checksum not in checksum_dict:                    
+                    added_count += 1                    
+                    checksum_dict[my_checksum] = [x]                    
+               else:                    
+                    existing_count += 1
+                    checksum_dict[my_checksum].append(x)                             
+          if verbose_mode:
+               print('\nSuccessfullly built dictionary checksum_dict')
+               print('\nLength of checksum_dict is ',len(checksum_dict))
+               print('Added_count:',added_count)
+               print('Existing_count:',existing_count)
+          save_obj(obj_dir, checksum_dict, dict_name)
+          if verbose_mode:
+               print('\nSaved', checksum_file, 'to disk...\n')
+          
+
+
+def remove_files_from_checksum_dict(verbose_mode = True):
+     global checksum_dict   
+     removed_items = 0     
+     for check_sum in checksum_dict:              
+          for list_element in checksum_dict[check_sum]:                                         
+               if list_element not in fullfilelist:
+                    if verbose_mode:
+                         print('Removing item: ',list_element)
+                    checksum_dict[check_sum].remove(list_element)                                     
+                    removed_items += 1                                
+     return removed_items
+
+def add_files_to_checksum_dict(verbose_mode = True):
+     global checksum_dict
+     num_added_items = 0     
+     for filepath in fullfilelist:
+          if not file_in_checksum_dict(filepath):    #the filepath is not in the checksum_dict dictionary 
+               if verbose_mode:
+                    print('Adding item: ',filepath)
+               computed_checksum = compute_sha1(filepath)
+               if computed_checksum not in checksum_dict:   #the checksum for the file is not already in checksum_dict                                        
+                    checksum_dict[computed_checksum] = [filepath]
+               else:     #the checksum is already in checksum_dict - add the filepath to it
+                    checksum_dict[computed_checksum].append(filepath)
+               num_added_items += 1     
+     return num_added_items
+     
+
+def file_in_checksum_dict(filepath):
+     for x in checksum_dict:
+          if filepath in checksum_dict[x]:
+               return True
+     return False
+
+
+def display_single_checksum_files():     
+     global chosen_checksum     
+     if len(checksum_dict) == 0 or len([x for x in checksum_dict if len(checksum_dict[x]) > 1]) == 0:
+          print('\nNo checksum duplicates found...')
+          chosen_checksum = -1
+          return
+     checksum_list = list(checksum_dict.keys())
+     found_bad = True
+     while found_bad:
+          chosen_checksum = random.choice(checksum_list)
+          if len(checksum_dict[chosen_checksum]) > 1:
+                 found_bad = False
+     del checksum_list      
+     print(60*'-','CHECKSUM DELETE\n')     
+     print('processing',chosen_checksum)    
+     display_only_checksum_files()
+     
+                                
+                    
+
+def display_only_checksum_files():     
+     counter = 0 
+     for x in checksum_dict[chosen_checksum]:
+          counter += 1
+          print('{0:3d} {1:161s} {2:15d} {3}'.format(counter, x, os.path.getsize(x), compute_sha1(x)))
+     print()
+     
+def remove_empty_dict_keys(verbose_mode = True):
+     global checksum_dict
+     counter = 0
+     for y in [x for x in checksum_dict if len(checksum_dict[x]) == 0]:
+          if verbose_mode:
+               print('removing empty key', y)
+          checksum_dict.pop(y)
+          counter += 1
+     return counter
+
+
+def get_checksum_file_action_menu_choice():
+     if chosen_checksum == -1:     #if it's -1 there is nothing left to process          
+          return 'm'
+     valid_choice_entered = 0
+     myinput=0
+     while not valid_choice_entered:
+          display_file_action_instructions()
+          myinput = input('\nEnter choice: ')
+          if len(myinput) > 0:               
+               if   myinput in ['n','m']:
+                    valid_choice_entered = 1               
+               elif myinput == 'dall':
+                    valid_choice_entered = 1
+               elif myinput[0] == 'd':
+                    try:
+                         mynumber = int(myinput[1:])
+                    except:
+                         valid_choice_entered = 0
+                    else:
+                         if mynumber > 0 and mynumber <= len(checksum_dict[chosen_checksum]):
+                              valid_choice_entered = 1
+                         else:
+                              print('\nvalue entered is out of range\n')
+                         
+               elif myinput[0] in ('k', 'p'):
+                    try:
+                         mynumber = int(myinput[1:])
+                    except:
+                         valid_choice_entered = 0
+                    else:
+                         if mynumber > 0 and mynumber <= len(checksum_dict[chosen_checksum]):
+                              valid_choice_entered = 1
+                         else:
+                              print('\nvalue entered is out of range\n')
+                              
+               elif myinput[0] == 'r':
+                    valid_choice_entered = 1
+               else:
+                    valid_choice_entered = 0
+     return myinput     
+     
+     
+def execute_checksum_file_action_choice(mychoice):          
+     if   mychoice == 'm':
+          print('\nreturning to main menu...')
+     elif mychoice == 'n': #user wants to display the next duplicate set
+          display_single_checksum_files()
+          execute_checksum_file_action_choice(get_checksum_file_action_menu_choice())
+     elif mychoice == 'dall':
+          delete_all_checksum_files()
+          display_single_checksum_files()
+          execute_checksum_file_action_choice(get_checksum_file_action_menu_choice())         
+     elif mychoice[0] == 'd': #user selects to delete a single file
+          delete_checksum_single_file(int(mychoice[1:]))
+          if len(checksum_dict[chosen_checksum]) == 0:
+               print('\nFilename no longer exists on the disk\n')
+               display_single_checksum_files()
+               execute_checksum_file_action_choice(get_checksum_file_action_menu_choice())   
+          else:    
+               display_only_checksum_files()
+               execute_checksum_file_action_choice(get_checksum_file_action_menu_choice())    
+     elif mychoice[0] == 'k':
+          keep_one_checksum_only(int(mychoice[1:]))
+          display_only_checksum_files()
+          execute_checksum_file_action_choice(get_checksum_file_action_menu_choice())
+     elif mychoice[0] == 'p':
+          play_choice(checksum_dict[chosen_checksum][int(mychoice[1:])-1])
+          execute_checksum_file_action_choice(get_checksum_file_action_menu_choice())
+     elif mychoice[0] == 'r':
+          display_only_checksum_files()
+          execute_checksum_file_action_choice(get_checksum_file_action_menu_choice())
+     else:
+          print('Unknown response')
+          display_single_checksum_files()
+          execute_checksum_file_action_choice(get_checksum_file_action_menu_choice())
+
+
+
+def delete_all_checksum_files():
+     if len(checksum_dict[chosen_checksum]) == 0:
+          print('\nNothing to delete!')
+          return
+     print()     
+     for x in checksum_dict[chosen_checksum]:
+          print('deleting ',x)
+          move_copy_file('move', x, move_to_directory)
+          remove_entry_from_fullfilelist(x)
+     #delete this checksum from the checksum_dict dictionary
+     checksum_dict.pop(chosen_checksum)
+     print()
+     
+
+
+def delete_checksum_single_file(file_number):    
+     file_number -= 1    #convert to 0 based list
+     print('\ndeleting ', checksum_dict[chosen_checksum][file_number])
+     print()
+     move_copy_file('move', checksum_dict[chosen_checksum][file_number], move_to_directory)
+     remove_entry_from_fullfilelist(checksum_dict[chosen_checksum][file_number])
+     remove_entry_from_checksum_dict(checksum_dict[chosen_checksum][file_number])
+          
+
+     
+def keep_one_checksum_only(file_number):    
+     global checksum_dict
+     file_number -= 1
+     print()
+     my_saved_item = checksum_dict[chosen_checksum].pop(file_number)     
+     for x in checksum_dict[chosen_checksum]:         
+          print('deleting ', x)          
+          move_copy_file('move', x, move_to_directory)
+          remove_entry_from_fullfilelist(x)          
+     print()
+     new_list = [my_saved_item]
+     checksum_dict[chosen_checksum] = new_list
+     del new_list
+
+
+def remove_entry_from_checksum_dict(my_filename):
+     global checksum_dict
+     checksum_dict[chosen_checksum].remove(my_filename)
+
+
+
+#------------------------------------------------------------------------------------------------------------
+#  Process an extension
+#-----------------------------------------------------------------------------------------------------------
+
+
+def process_extension(): #handle menu item 'delete files of a particular extension'
+     global refresh_filelist_req
+     start_pos = len(os.path.expanduser("~")) + 1
+     my_exten = input('\nEnter extension to delete (no leading dot): ')
+     my_exten = '.' + my_exten
+     valid_input = 0
+     while not valid_input:
+          limit_by_size = input('Input maximum size in bytes (zero for all): ')
+          try:
+               size_limit = int(limit_by_size)
+          except:
+               pass
+          else:
+               if size_limit >= 0:
+                    valid_input = 1     
+     all_file_of_extension = get_list_of_extension(my_exten,size_limit)
+     if len(all_file_of_extension) == 0:
+          print('\nNo files found with that extension')
+          return
+     else:
+          print('\nThe following files will be deleted:\n')
+          for x in all_file_of_extension:
+               print('{0:161s} {1:15d}'.format(x[start_pos:], os.path.getsize(x)))
+          print('\nYou are about to delete all listed files with extension',my_exten)
+          confirm = 't'
+          while confirm.lower() not in ('y', 'n'):
+               confirm = input('Are you sure (y or n)? ')
+          if confirm == 'n':
+               print('\nAborting delete...')
+               return
+          else:
+               print()
+               for x in all_file_of_extension:
+                    print('deleting ', x)
+                    move_copy_file('move', x, move_to_directory)
+               print('\nTotal files deleted: ',len(all_file_of_extension))
+               refresh_filelist_req = 1      #filelist needs to be refreshed since we've deleted a bunch of files
+     
+
+def get_list_of_extension(my_extension, size_limit):      #fill all_file_of_extension with filelist with that extension and size
+     all_file_of_extension = []
+     counter=0  
+     for root, dirs, files in os.walk(search_directory):
+          for myfile in files:
+               counter += 1
+               shortname, extension = os.path.splitext(myfile)   #shortname is filename w/o extension, extension = extension              
+               file_size = os.path.getsize(os.path.join(root, myfile))
+               if size_limit > 0:                   
+                    if extension == my_extension and file_size <= size_limit:
+                         all_file_of_extension.append(os.path.join(root, myfile))
+               else:
+                    if extension == my_extension:
+                         all_file_of_extension.append(os.path.join(root, myfile))
+     return all_file_of_extension
+                    
+                         
+
+#---------------------------------------------------------------------------------------------------------------
+#  Remove empty directories
+#---------------------------------------------------------------------------------------------------------------
+
+
+def remove_empty_directories(root_dir=search_directory):     
+     print('\nRemoving all empty directories from path', root_dir, '...')     
+     for root, dirs, files in os.walk(root_dir):
+          for dir in dirs:
+               newdir = os.path.join(root, dir)        
+               try:
+                    os.removedirs(newdir)            
+               except:
+                    pass
+               else:
+                    print('Deleting ',newdir)         
+     return
+
+
+#---------------------------------------------------------------------------------------------------------------------
+#  Display file stats
+#---------------------------------------------------------------------------------------------------------------------
+
+def display_file_stats():
+     global refresh_filelist_req
+     refresh_filelist_req = 1
+     print('\nCalculating... this may take a minute')
+     print('Showing statistics for', search_directory)    
+     num_files, num_unique = find_dups(print_stats = False)
+     used = get_total_file_size()
+     create_update_checksum_dict(verbose_mode = False)
+     unique_checksum, non_unique_checksum, num_nec = calculate_checksum_stats()     
+     readable_size = '(' + approximate_size(used) + ')'
+     print('\n**************File Statistics*******************')
+     print('{0:40s} {1:n} {2}'.format('Total space used by files in bytes:', used, readable_size))
+     print('{0:40s} {1:n}'.format('Total number of files:', num_files))
+     print('{0:40s} {1:n}'.format('Number of unique filenames:', num_unique))
+     print('{0:40s} {1:n}'.format('Number of duplicate filenames:', num_files - num_unique))
+     print('{0:40s} {1:n}'.format('Number of checksum unique files:', unique_checksum))
+     print('{0:40s} {1:n}'.format('Number of checksum duplicate files:', non_unique_checksum))
+     print('{0:40s} {1:n}'.format('Average files per checksum:', num_files/num_nec))
+    
+
+
+def calculate_checksum_stats():
+     unique_checksum_files = 0
+     multiple_checksum_files = 0
+     number_non_empty_checksums = 0
+     for x in checksum_dict:
+          if len(checksum_dict[x]) == 1:
+               unique_checksum_files += 1
+               number_non_empty_checksums += 1
+          elif len(checksum_dict[x]) > 1:
+               multiple_checksum_files += 1
+               number_non_empty_checksums += 1
+     return (unique_checksum_files, multiple_checksum_files, number_non_empty_checksums)
+     
+
+
+def approximate_size(size, a_kilobyte_is_1024_bytes=True):
+    '''Convert a file size to human-readable form.
+
+    Keyword arguments:
+    size -- file size in bytes
+    a_kilobyte_is_1024_bytes -- If True (default), use multiples of 2014
+                                If False, use multiples of 1000
+
+    Returns: string
+
+    '''
+    SUFFIXES = {1000: ['KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'],
+            1024: ['KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB', 'ZiB', 'YiB']}
+    if size < 0:
+        raise ValueError('number must be non-negative')
+    multiple = 1024 if a_kilobyte_is_1024_bytes else 1000
+    for suffix in SUFFIXES[multiple]:
+        size /= multiple
+        if size < multiple:
+            return '{0:.1f} {1}'.format(size, suffix)
+    raise ValueError('number too large')
+
+def get_total_file_size():
+     total_size = 0
+     for x in fullfilelist:
+          total_size += os.path.getsize(x)
+     return total_size
+              
+
+
+#----------------------------------------------------------------------------------------------------------------------
+#  Stack filetypes
+#----------------------------------------------------------------------------------------------------------------------
+
+def stack_filetypes():
+     source_dir, target_dir, action, acting_extension = get_source_and_destination()
+     extension_set = determine_all_filetypes(source_dir, acting_extension)
+     print('extension_set is', extension_set)
+     success = create_target_directories(target_dir, extension_set)     
+     if success:
+          move_or_copy_extension_files(target_dir, action, extension_set)
+          if action == 'move':
+               remove_empty_directories(root_dir=source_dir)
+
+
+def get_source_and_destination():
+     global refresh_filelist_req
+     not_found = True
+     print('\nSpecify the source (where the files are coming from) directory name as an absolute path')
+     print('Your current directory is ', os.getcwd())
+     print('To use your current directory type current')
+     while not_found:
+          source_dir = input('Enter source directory: ')
+          if source_dir == 'current':
+               source_dir = os.getcwd()
+               not_found = False
+          elif os.path.isdir(source_dir):
+               not_found = False
+     print('\nSpecify an absolute path target (where the files will be moved to) directory name ')
+     print('Your current directory is ', os.getcwd())
+     print('To use your current directory type current')
+     target_dir = input('Enter target directory: ')
+     if target_dir == 'current':
+          target_dir = os.getcwd()
+     print('\nType move to move the files or copy to copy the files')
+     action_requested = ''
+     while action_requested not in ('move', 'copy'):          
+          action_requested = input('move or copy: ')
+     if action_requested == 'move':
+          refresh_filelist_req = 1
+     my_homedir = os.path.expanduser("~")
+     print('\nSpecify whether to copy/move all or a specific extension (no leading dot) ')
+     acting_extension = input('Enter extension or all for everything: ')
+     if not acting_extension == 'all':
+          acting_extension = '.' + acting_extension
+     return source_dir, target_dir, action_requested, acting_extension
+
+def determine_all_filetypes(source_dir, acting_extension):
+     extension_set = set()
+     populate_fullfilelist(source_dir)     
+     for x in fullfilelist:
+          (dirname, filename) = os.path.split(x)
+          shortname, extension = os.path.splitext(filename)          
+          if extension == '':
+               extension = '.no_exten'
+          if acting_extension == 'all':
+               extension_set.add(extension[1:])
+          else:
+               if acting_extension.lower() == extension.lower():
+                    extension_set.add(extension[1:])                    
+     return extension_set
+           
+                     
+def create_target_directories(target_dir, extension_set):         
+     if not os.path.isdir(target_dir):  
+          try:
+               os.mkdir(target_dir)
+          except:
+               print('\nError occurred when creating target directory.  Returning to main menu')
+               return False                                 
+     for x in extension_set:
+          path_to_create = os.path.join(target_dir, x)          
+          try:
+               os.mkdir(path_to_create)
+          except FileExistsError:  #continue if the directory already exists
+               pass
+     return True
+     
+
+
+def move_or_copy_extension_files(target_dir, action, extension_set):  
+     verb = 'copying' if action == 'copy' else 'moving'
+     number_moved = 0
+     for my_extension in extension_set:
+          extension_with_dot = '.' + my_extension
+          print('\nprocessing extension ', my_extension)
+          cur_target_dir = os.path.join(target_dir, my_extension) + '/'          
+          for x in fullfilelist:
+               (dirname, filename) = os.path.split(x)
+               shortname, extension = os.path.splitext(filename)
+               if extension == '':
+                    extension = '.no_exten'
+               if extension == extension_with_dot:
+                    print(verb, x, 'to', cur_target_dir)                    
+                    move_copy_file(action, x, cur_target_dir)
+                    number_moved += 1
+     print('\nTotal number of files found and copied/moved: ', number_moved)
+     
+
+#-------------------------------------------------------------------------------------------------------------------
+# Move or copy files
+#-------------------------------------------------------------------------------------------------------------------
+
+def move_or_copy_files():
+     source_dir, target_dir, action, acting_extension = get_source_and_destination()
+     files_to_move = get_files_to_act_on(source_dir, acting_extension, target_dir)     
+     success = create_target_if_required(target_dir)
+     if success:
+          do_file_moves(files_to_move, action, target_dir)
+          if action == 'move':
+               remove_empty_directories(root_dir=source_dir)
+     
+
+def get_files_to_act_on(source_dir, acting_extension, target_dir):
+     files_to_move = []
+     counter=0   
+     for root, dirs, files in os.walk(source_dir):
+          for myfile in files:
+               dirname, filename = os.path.split(myfile)
+               shortname, extension = os.path.splitext(filename)
+               if source_dir == target_dir:
+                    if root != source_dir:
+                         if acting_extension == 'all':
+                              files_to_move.append(os.path.join(root, myfile))     
+                         else:
+                              if acting_extension.lower() == extension.lower():
+                                   files_to_move.append(os.path.join(root, myfile))
+               else:
+                    if acting_extension == 'all':
+                              files_to_move.append(os.path.join(root, myfile))     
+                    else:
+                         if acting_extension.lower() == extension.lower():
+                              files_to_move.append(os.path.join(root, myfile))                    
+     return files_to_move
+
+
+def create_target_if_required(target_dir):
+     if not os.path.isdir(target_dir):  
+          try:
+               os.mkdir(target_dir)
+          except:            
+               print('\nError creating directory: ', target_dir)
+               return False
+     return True
+          
+     
+def do_file_moves(files_to_move, action, target_dir):
+     verb = 'copying' if action == 'copy' else 'moving'
+     number_moved = 0
+     for x in files_to_move:
+          print(verb, x, 'to', target_dir + '/') 
+          move_copy_file(action, x, target_dir + '/')
+          number_moved += 1
+     print('\nTotal number of files found and copied/moved: ', number_moved)
+     
+
+
+#--------------------------------------------------------------------------------------------------------------------
+# Change active directory
+#--------------------------------------------------------------------------------------------------------------------
+
+def change_active_directory():
+     global search_directory, refresh_filelist_req
+     base_dir_exists = False
+     my_homedir = os.path.expanduser("~")
+     gordutils = os.path.join(my_homedir, '.gordutils')     
+     work_dir_file = os.path.join(gordutils, 'gu_working_path')    
+     print('\nPlease enter the directory containing the file system you want to act on: ')
+     while not base_dir_exists:
+          mydir = input('directory: ')
+          if os.path.exists(mydir):
+               base_dir_exists = True     
+     search_directory = mydir
+     with open(work_dir_file, mode='w', encoding='utf-8') as base_file:
+               base_file.write(mydir)    
+     print('\nBase directory set to', search_directory)
+     print('This is permanent until reset with option #8')
+     refresh_filelist_req = 1
+     
+     
+
+#----------------------------------------------------------------------------------------------------------------------
+#  Print working directory
+#----------------------------------------------------------------------------------------------------------------------
+
+def print_working_directory():
+     print('\nCurrent active directory: ',search_directory)
+
+
+
+#----------------------------------------------------------------------------------------------------------------------
+#  Checkout files
+#----------------------------------------------------------------------------------------------------------------------
+
+def checkout_files():
+     keep_going = check_destination_directory()
+     if keep_going:
+          source_dir, requested_extension = get_source_and_extension()
+          target_dir = os.path.expanduser("~") + '/checkout_dir/'
+          print('\nThe files will be copied to directory: ', target_dir) 
+          files_to_checkout = create_file_checkout_list(source_dir, target_dir, requested_extension)
+          copy_count = special_copy_files_to_checkout(files_to_checkout)          
+          print('\nSuccessfully checked out', copy_count, 'files')
+          write_checkout_filelist_to_disk(files_to_checkout)
+
+
+def check_destination_directory():
+     # the destination directory needs to be emtpy before beginning
+     myinput = ''
+     target_dir = os.path.expanduser("~") + '/checkout_dir/'
+     if os.path.isdir(target_dir):     
+          if not os.listdir(target_dir) == []:     #the target directory is not empty
+               print('\nDestination directory ',target_dir, ' is not empty')
+               myinput = input('Is it ok to delete everything in this directory (y or n)? ')
+               while myinput not in ('y', 'n'):
+                    myinput = input('(y or n) ')
+               if myinput == 'n':
+                    print('\nCannot continue without empty directory.  Returning to main menu...')
+                    return False
+               else:     #delete contents of checkout destination directory
+                    for x in os.listdir(target_dir):
+                         file_to_delete = os.path.join(target_dir, x)                         
+                         delete_item_from_disk(file_to_delete)
+                    delete_item_from_disk(os.path.join(os.path.expanduser("~"), '.gordutils', 'checkout_file.pkl'))
+                    return True
+          else:
+               return True
+     else:
+          os.mkdir(target_dir)
+          return True
+               
+
+def get_source_and_extension():    
+     not_found = True
+     print('\nSpecify the source directory to checkout the files from (as an absolute path)')
+     print('Your current directory is ', os.getcwd())
+     print('To use your current directory type current')
+     while not_found:
+          source_dir = input('Enter source directory: ')
+          if source_dir == 'current':
+               source_dir = os.getcwd()
+               not_found = False
+          elif os.path.isdir(source_dir):
+               not_found = False              
+     print('\nSpecify the filetype to checkout (no leading dot)')
+     requested_extension = input('Extension to checkout: ')
+     requested_extension = '.' + requested_extension
+     return source_dir, requested_extension
+
+
+
+def create_file_checkout_list(source_dir, target_dir, requested_extension):
+     files_to_checkout = []
+     counter=0   
+     requested_extensions_to_copy = get_extension_list(requested_extension)
+     for root, dirs, files in os.walk(source_dir):
+          for myfile in files:
+               dirname, filename = os.path.split(myfile)
+               shortname, file_extension = os.path.splitext(filename)
+               if file_extension.lower() in requested_extensions_to_copy:
+                    checkout_name_list = [os.path.join(root, myfile)]
+                    files_to_checkout.append(checkout_name_list)                                 
+     return files_to_checkout
+
+
+def get_extension_list(requested_extension):
+     if requested_extension.lower() in ('.jpg', '.jpeg'):
+          return ['.jpg', '.jpeg']
+     else:
+          return [requested_extension.lower()]
+
+
+def special_copy_files_to_checkout(files_to_checkout):
+     # this function copies a file from source to a destination directory
+     # if the file exists it won't overwrite so we need to tack on a numeric extension to make it unique
+     # it writes out the written filename to the files_to_checkout list
+     # after all files are written, files_to_checkout will be a list of lists:
+     #  first item is the original file
+     #  second item is the destination file
+     copy_count = 0
+     dest_directory = os.path.expanduser("~") + '/checkout_dir/'
+     for x in files_to_checkout:          
+          (dirname, filename) = os.path.split(x[0])   #filename is the filename only
+          shortname, extension = os.path.splitext(filename)   #shortname is filename w/o extension, extension = extension
+          destination_file = os.path.join(dest_directory, filename)
+          counter = 1
+          while os.path.isfile(destination_file):        
+               destination_file = dest_directory + shortname + '(' + str(counter) + ')' + extension        
+               counter += 1
+          #now that destination is a unique filename, the call to copy should work
+          print('copying ', x[0], ' to ', destination_file)
+          shutil.copy2(x[0], destination_file, follow_symlinks=False)
+          x.append(destination_file)
+          copy_count += 1
+     return copy_count
+
+
+def write_checkout_filelist_to_disk(files_to_checkout):
+     my_homedir = os.path.expanduser("~")
+     file_dir = os.path.join(my_homedir,'.gordutils')
+     save_obj(file_dir, files_to_checkout, 'checkout_file')
+     
+
+#----------------------------------------------------------------------------------------------------------------------
+#  Checkin files
+#----------------------------------------------------------------------------------------------------------------------
+
+def checkin_files():
+     num_deleted = 0
+     #load the checkout list
+     my_homedir = os.path.expanduser("~")
+     file_dir = os.path.join(my_homedir,'.gordutils')
+     my_checkout_list = load_obj(file_dir, 'checkout_file')     
+     # for each destination file, check if it is there
+     # if it's not there, remove it from the base file system
+     print()
+     for x in my_checkout_list:
+          if not os.path.isfile(x[1]):  #the file has been deleted from the checkout directory               
+               print('deleting ', x[0])
+               move_copy_file('move', x[0], move_to_directory)
+               num_deleted += 1
+     print('\nDeleted', num_deleted, 'files from source directory')
+          
+     
+
+#----------------------------------------------------------------------------------------------------------------------
+#  Utility functions
+#----------------------------------------------------------------------------------------------------------------------
+
+
+def save_obj(file_dir, obj, name ):
+     file_dir = file_dir + '/'
+     with open(file_dir + name + '.pkl', 'wb') as f:
+          pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
+     
+
+def load_obj(file_dir, name ):
+     file_dir = file_dir + '/'
+     with open(file_dir + name + '.pkl', 'rb') as f:
+          return pickle.load(f)
+
+def compute_sha1(filename):
+     blocksize = 65536
+     hasher = hashlib.sha1()
+     with open(filename, 'rb') as afile:
+          buf = afile.read(blocksize)
+          while len(buf) > 0:
+               hasher.update(buf)
+               buf = afile.read(blocksize)
+     return hasher.hexdigest()
+
+
+def populate_fullfilelist(dirsearch):
+     global fullfilelist
+     del fullfilelist[:]     
+     counter=0   
+     for root, dirs, files in os.walk(dirsearch):
+          for myfile in files:
+             counter += 1
+             fullfilelist.append(os.path.join(root, myfile))
+
+def display_file_action_instructions():
+     print('To delete a specific file, enter d#')
+     print('To delete all items, enter dall')
+     print('To keep only one item, enter k#')
+     print('To continue with the next duplicate item, press n')
+     print('To return to the main menu, press m')
+
+
+def delete_item_from_disk(item):
+     try:
+          os.remove(item)  #delete the requested file from the disk
+     except:
+          print('Error encountered in deleting file ',item)
+          print('exiting...')
+          sys.exit(1)
+
+
+def move_copy_file(action, item, dest_directory):
+     #this function moves a file from source to a destination directory
+     #if the file exists it won't overwrite so we need to tack on a numeric extension to make it unique
+     (dirname, filename) = os.path.split(item)   #filename is the filename only
+     shortname, extension = os.path.splitext(filename)   #shortname is filename w/o extension, extension = extension
+     destination = os.path.join(dest_directory, filename)
+     counter = 1
+     while os.path.isfile(destination):        
+        destination = dest_directory + shortname + '(' + str(counter) + ')' + extension        
+        counter += 1
+     #now that destination is a unique filename, the call to move should work
+     if action == 'move':
+          try:
+               shutil.move(item, destination)
+          except:
+               return False
+          else:
+               return True
+     elif action == 'copy':
+          try:
+               shutil.copy2(item, destination, follow_symlinks=False)
+          except:
+               return False
+          else:
+               return True
+     else:
+          print('Invalid action passed to move_copy_file: ',action)
+          sys.exit(1)
+
+
+def remove_entry_from_fullfilelist(entry):
+     global fullfilelist
+     fullfilelist.remove(entry)
+
+
+def replace_slash_with_underscore(mystring):
+     mystring = mystring.replace('/', '_')
+     if mystring[0] == '_':
+          mystring = mystring[1:]
+     if mystring[-1] == '_':
+          mystring = mystring[:-2]
+     return mystring
+
+
+def play_choice(mychoice):   #launch a program to play or view the chosen file       
+     (dirname, filename) = os.path.split(mychoice)   #filename is the filename only
+     shortname, extension = os.path.splitext(filename)     
+     if extension.lower() in ('.jpg', '.jpeg', '.png', '.bmp', '.gif'):
+          my_command = 'feh --scale-down ' + '"' + mychoice + '"'              
+          os.system(my_command)
+     elif extension.lower() in ('.mp4', '.mov', '.avi', '.mp3', '.wav'):
+          my_command = 'ffplay ' + '"' + mychoice + '"'
+          os.system(my_command)
+          
+
+def first_time_setup():
+     global search_directory, move_to_directory     
+     base_dir_exists = False
+     my_homedir = os.path.expanduser("~")
+     gordutils = os.path.join(my_homedir, '.gordutils')
+     if not os.path.isdir(gordutils):
+          os.makedirs(gordutils)
+     work_dir_file = os.path.join(gordutils, 'gu_working_path')
+     if not os.path.exists(work_dir_file):   #first use of the program          
+          print('\nPlease enter the directory containing the file system you want to act on: ')
+          while not base_dir_exists:
+               mydir = input('directory: ')
+               if os.path.exists(mydir):
+                    base_dir_exists = True
+          print('\nUsing', mydir, 'as base directory')
+          search_directory = mydir
+          with open(work_dir_file, mode='w', encoding='utf-8') as base_file:
+                    base_file.write(mydir)
+     else:     #the program has been run before
+          with open(work_dir_file, encoding='utf=8') as base_file:
+               search_directory = base_file.read()
+          print('\nBase directory is', search_directory)
+     #create the move_to_directory
+     move_to_directory = os.path.join(my_homedir, 'gordutils_deleted') + '/'     
+     if not os.path.exists(move_to_directory):
+          os.makedirs(move_to_directory)                    
+          
+     
+          
+
+#-----------------------------------------------------------------------------------------------------------
+#  Main
+#-----------------------------------------------------------------------------------------------------------
+
+
+if __name__ == '__main__':
+     first_time_setup()
+     while True:
+          main_menu_choice = get_main_choice()
+          execute_main_choice(main_menu_choice)
+
+
+
+
