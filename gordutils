@@ -62,7 +62,7 @@ def get_main_choice():
           try:
                myinput = int(myinput)
           except:
-               myinput = 0
+               pass
      return myinput
 
 def execute_main_choice(choice):
