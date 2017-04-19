@@ -14,3 +14,6 @@ duplicates.  Other tools introduced over time included
 
 I'm a bit of a novice at python, this being my first python program.  I've found the available data structures (lists, 
 sets, dictionaries) to be perfect for the types of things I'm doing in this program.
+
+Manual available here:  https://docs.google.com/document/d/1WN8mYN2dUhBal6Bdb9weXaAr93ADUgkal72UZ0SVPt0/edit?usp=sharing
+
