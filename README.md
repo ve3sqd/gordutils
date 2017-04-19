@@ -10,7 +10,7 @@ duplicates.  Other tools introduced over time included
 
 1. removing empty directories from a 'base filesystem'
 2. copying or moving all files or files of only a particular extension to another directory (or even the same one)
-3. removing all file of a particular extension (optionally limited by maximum size)
+3. removing all files of a particular extension (optionally limited by maximum size)
 
 I'm a bit of a novice at python, this being my first python program.  I've found the available data structures (lists, 
-sets, dictionaries) to be perfect for the types of things I'm going in this program.
+sets, dictionaries) to be perfect for the types of things I'm doing in this program.
