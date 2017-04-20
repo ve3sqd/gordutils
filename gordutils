@@ -37,7 +37,15 @@ chosen_checksum = 0
 
 
              
-def display_main_menu():         
+def display_main_menu():        
+
+     '''print out the main menu choices
+
+     Arguments:  none
+
+     Returns: none
+
+     ''' 
      fmt = '{0:>3s} {1}'
      print("\nGORD'S FILE UTILITIES")
      print(fmt.format('1.', 'Process duplicate filenames'))
@@ -53,7 +61,16 @@ def display_main_menu():
      print(fmt.format('11.', 'Checkin filetype'))
      print(fmt.format('12.', 'Quit'))   
 
+
 def get_main_choice():
+     
+     '''Ask the user to make a main menu choice and validates it.  The input must be a number.
+
+     Arguments: none
+
+     Returns: the user input as a number
+
+     '''
      myinput=0
      main_valid_choice=(1,2,3,4,5,6,7,8,9,10,11,12)      #contains all of the valid main menu choices
      while myinput not in main_valid_choice:
@@ -65,7 +82,16 @@ def get_main_choice():
                pass
      return myinput
 
+
 def execute_main_choice(choice):
+     
+     '''Main menu branching point - call the appropriate function based on user input
+
+     Arguments: the menu choice entered by the user (from get_main_choice())
+
+     Returns:  none
+
+     '''
      if choice == 1:
           process_dup_filenames()
      elif choice == 2:
@@ -97,6 +123,14 @@ def execute_main_choice(choice):
 #---------------------------------------------------------------------------------------------------
 
 def process_dup_filenames():
+
+     '''Master function for process duplicate filenames - call functions in required order
+
+     Arguments: none
+
+     Returns:  none
+
+     '''
      global refresh_filelist_req
      refresh_filelist_req = 1
      find_dups()    #populate dupset and fileset
@@ -106,10 +140,16 @@ def process_dup_filenames():
      
 
 def find_dups(print_stats = True):
-     #move all the files to a set, adding them to a dups list if they already exist in the set
-     #populate fileset and dupset
-     #fileset contains a set of unique filenames
-     #dupset contains a (unique) set of duplicates 
+
+     '''populates a list of all of the files in the base directory (recursively) into list fullfilelist and
+        populates a set called dupset that contains all of the duplicate filenames (w/o regard to the path)
+	Also populates a set called fileset that contains all of the unique filenames in the filesystem
+
+     Arguments: optional argument print_stats prints out statistics if True
+
+     Returns: the total number of files in the filesystem and the total number of unique filenames 
+
+     '''
      global refresh_filelist_req, dupset
      fileset=set()       #contains all filenames from disk (no duplicates because it's a set)     
      dupset.clear()     
@@ -130,7 +170,16 @@ def find_dups(print_stats = True):
 
      
      
-def print_dup_stats(all_files, unique_files):     
+def print_dup_stats(all_files, unique_files):    
+    
+     '''Simply prints file statistics to the screen
+
+     Arguments: all_files = total # of files (recursive) in the filesystem
+                unique_files = total # of unique filenames (w/o regard to path) in the filesystem
+
+     Returns:  none
+     
+     '''
      print('\n{0:32s} {1:n}'.format('Number of files: ', all_files))
      print('{0:32s} {1:n}'.format('Number of unique filenames: ',unique_files))
      print('{0:32s} {1:n}\n'.format('Number of duplicate filenames:', all_files - unique_files))
@@ -138,6 +187,18 @@ def print_dup_stats(all_files, unique_files):
                      
 
 def populate_dict_all_dups_and_display():    
+
+     '''populate a dictionary called all_dups (global)
+        The key is a number (starting at 1) and the item is a randomly chosen filename from the set dupset
+	This dictionary is used to display all of the duplicates and allow the user to choose an action on them
+	This function calls display_all_dups to display the duplicate chosen
+	This function is called when a new list of duplicate filenames needs to be created and displayed on the screen
+
+     Arguments:  none
+
+     Return:  none
+
+     '''
      global all_dups     
      all_dups.clear()    #all_dups is a global dictionary of number:filepath pairs
      if len(dupset) == 0:
@@ -158,6 +219,15 @@ def populate_dict_all_dups_and_display():
 
 
 def display_all_dups():
+
+     '''Display all the duplicates for that filename together with duplicate number, filesize, and sha1 checksum
+        This function is called when the current list of duplicates just needs to be redisplayed (after some file action by the user)
+
+     Arguments: none
+
+     Returns: none
+
+     '''
      start_pos = len(my_homedir) + 1
      if len(all_dups) > 0:
           for x in all_dups:
@@ -169,7 +239,17 @@ def display_all_dups():
           print('\nNo duplicates found!!\n')
 
 
-def reset_all_dup_keys():     #renumber all of the keys in all_dups to close the gap after a delete
+
+def reset_all_dup_keys():   
+
+     '''when a duplicate is deleted by the user, the keys need to be re-numbered so they range from 1 to the
+        new number of duplicates (i.e. close the number gap after a delete)
+
+     Arguments:  none
+
+     Returns:  none
+
+     '''
      global all_dups
      keypos = 0
      for key in all_dups:
@@ -178,6 +258,14 @@ def reset_all_dup_keys():     #renumber all of the keys in all_dups to close the
          
 
 def get_file_action_menu_choice():
+
+     '''Accept and validate input for the action to perform for duplicate file processing
+
+     Arguments:  none
+
+     Returns:  return the choice selected
+
+     '''
      valid_choice_entered = 0
      myinput=0
      if len(dupset) == 0:          
@@ -218,6 +306,16 @@ def get_file_action_menu_choice():
      
      
 def execute_file_action_choice(mychoice):
+
+     '''Depending on the choice entered for the current duplicate filename list, 
+        call the appropriate function to handle the request
+	Note that this function is recursive and calls itself repeatedly (not sure I like this - may rewrtie non-recursively)
+
+     Arguments:  the action choice entered by the user (dall, m, n, k3, etc.)
+
+     Returns:  none
+
+     '''
      if mychoice == 'n': #user wants to display the next duplicate set
           populate_dict_all_dups_and_display() #show onscreen the files for one duplicate filename
           execute_file_action_choice(get_file_action_menu_choice())
@@ -255,6 +353,15 @@ def execute_file_action_choice(mychoice):
      
 
 def delete_single_file(file_number):
+
+     '''When the user select to delete a particular file, this function is called
+        After deletion it cleans up fullfilelist, all_dups, and dupset, as well as renumbering the remaining choices
+
+     Arguments:  The file number selected (which is the all_dups key)
+
+     Returns:  none
+
+     '''
      #define my_filepath and filename
      my_filepath = all_dups[file_number]
      (dirname, filename) = os.path.split(my_filepath)
@@ -271,6 +378,15 @@ def delete_single_file(file_number):
             
      
 def keep_one_only(file_number):    
+
+     '''When the user chooses to keep only one file, this function is called
+        It deletes all of the other files, then cleans up all_dups and dupset
+
+     Arguments:  the file number chosen by the user
+
+     Returns:  none
+
+     '''
      global all_dups
      if len(all_dups) == 0:
           print('\nNothing to delete!')
@@ -289,7 +405,15 @@ def keep_one_only(file_number):
      remove_entry_from_dupset(filename)
 
 
-def delete_all_files():   #delete (move) all files listed in all_dups    
+def delete_all_files():  
+     '''When the user enters 'dall', this function is called
+        It deletes all files in all_dups, then cleans up dupset and fullfilelist
+
+     Arguments: none
+
+     Returns: none
+
+     '''
      if len(all_dups) == 0:
           print('\nNothing to delete!')
           return
@@ -304,6 +428,14 @@ def delete_all_files():   #delete (move) all files listed in all_dups
 
 
 def remove_entry_from_all_dups(dupkey):
+
+     '''Utility function to remove a file from the all_dups dictionary
+
+     Arguments: the key of the entry to delete from all_dups
+
+     Returns:  none
+
+     '''
      global all_dups
      try:
           all_dups.pop(dupkey)
@@ -312,10 +444,23 @@ def remove_entry_from_all_dups(dupkey):
           print('exiting...')
           sys.exit(2)
 
+
+
 def remove_entry_from_dupset(entry):
+
+     '''''Utility function to remove a filename from the dupset set
+
+     Arguments:  the filename (w/o path) to remove
+
+     Returns: none
+
+     '''
      global dupset
      if entry in dupset:
           dupset.remove(entry)
+
+
+
 
 #------------------------------------------------------------------------------------------------------------
 #  Process checksums
