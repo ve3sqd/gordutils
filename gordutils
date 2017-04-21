@@ -466,7 +466,20 @@ def remove_entry_from_dupset(entry):
 #  Process checksums
 #------------------------------------------------------------------------------------------------------------
 
+#This section processes files that have the same checksum.  It is almost identical to the dulicate filename
+#section but works instead on files with the same checksum.
+
+
+
 def process_checksums():     
+
+     '''Main function to call the other functions in the required order
+
+     Arguments: none
+
+     Returns:  none
+
+     '''
      create_update_checksum_dict()
      display_single_checksum_files()
      if chosen_checksum != -1:
@@ -476,6 +489,18 @@ def process_checksums():
      
      
 def create_update_checksum_dict(verbose_mode = True):
+
+     '''Since it takes a while to calculate checksums on all of the files, once they are calculated they are stored
+        in a file containing a dump of the checksum_dict dictionary
+	This function determines if the checksum file exists on disk and creates it if it doesn't
+	If the checksum already exists, it reads it in, then updates the checksum_dict dictionary to add or remove files as necessary
+	The filename is based on the path to the base directory and is an object created by pickle
+
+     Arguments:  optional argument verbose_mode can be set to false to suppress print output from the function
+
+     Returns: none
+
+     '''
      global checksum_dict    
      obj_dir = os.path.join(my_homedir,'.gordutils')
      dict_name = replace_slash_with_underscore(search_directory)        
@@ -545,6 +570,14 @@ def create_update_checksum_dict(verbose_mode = True):
 
 
 def remove_files_from_checksum_dict(verbose_mode = True):
+
+     '''Utility function to remove from checksum_dict all of the files that are no longer on the hard drive
+
+     Arguments:  optional arguments verbose_mode suppresses print output if set to False
+
+     Returns:  the number of items removed from the checksum_dict dictionary
+
+     '''
      global checksum_dict   
      removed_items = 0     
      for check_sum in checksum_dict:              
@@ -556,7 +589,17 @@ def remove_files_from_checksum_dict(verbose_mode = True):
                     removed_items += 1                                
      return removed_items
 
+
+
 def add_files_to_checksum_dict(verbose_mode = True):
+     '''Utility function to scan all of the files in the base filesystem and add them to
+       checksum_dict if not already there
+
+     Arguments:  verbose_mose suppresses print output if set to False
+
+     Returns:  returns the number of items added to the checksum_dict dictionary
+
+     '''
      global checksum_dict
      num_added_items = 0     
      for filepath in fullfilelist:
@@ -573,13 +616,50 @@ def add_files_to_checksum_dict(verbose_mode = True):
      
 
 def file_in_checksum_dict(filepath):
+
+     '''Utility function that simply returns True if a filepath is in the checksum_dict dictionary
+
+     Arguments:  the filepath to search the dictionary for
+
+     Returns:  true if filepath found, false otherwise
+
+     '''
      for x in checksum_dict:
           if filepath in checksum_dict[x]:
                return True
      return False
 
 
+def remove_empty_dict_keys(verbose_mode = True):
+
+     '''Called from create_update_checksum_dict, this utility function simply removes all empty checksum_dict keys from the dictionary
+
+     Arguments:  optional verbose_mode suppresses all print output if False
+
+     Returns:  the number of removed keys from the dictionary
+
+     '''
+     global checksum_dict
+     counter = 0
+     for y in [x for x in checksum_dict if len(checksum_dict[x]) == 0]:
+          if verbose_mode:
+               print('removing empty key', y)
+          checksum_dict.pop(y)
+          counter += 1
+     return counter
+
+
 def display_single_checksum_files():     
+
+     '''Randomly select a checksum_dict key that contains more than one filename as the item
+        This function calls display_only_checksum_files to display the files in the chosen checksum before existing
+	This function is called when we need to find and display the files for a new checksum
+
+     Arguments:  none
+
+     Returns:  none
+
+     '''
      global chosen_checksum     
      if len(checksum_dict) == 0 or len([x for x in checksum_dict if len(checksum_dict[x]) > 1]) == 0:
           print('\nNo checksum duplicates found...')
@@ -591,7 +671,6 @@ def display_single_checksum_files():
           chosen_checksum = random.choice(checksum_list)
           if len(checksum_dict[chosen_checksum]) > 1:
                  found_bad = False
-     del checksum_list      
      print(60*'-','CHECKSUM DELETE\n')     
      print('processing',chosen_checksum)    
      display_only_checksum_files()
@@ -600,24 +679,36 @@ def display_single_checksum_files():
                     
 
 def display_only_checksum_files():     
+
+     '''Simply displays all of the files for the chosen checksum on screen along with a counter, size, and the checksum
+        This function is called (apart from when called by display_single_checksum_file) to simply redisplay the  files matching
+	the chosen checksum after the user has performed an action on the checksum file list
+
+     Arguments:  none
+
+     Returns:  none 
+
+     '''
      counter = 0 
      for x in checksum_dict[chosen_checksum]:
           counter += 1
           print('{0:3d} {1:161s} {2:15d} {3}'.format(counter, x, os.path.getsize(x), compute_sha1(x)))
      print()
      
-def remove_empty_dict_keys(verbose_mode = True):
-     global checksum_dict
-     counter = 0
-     for y in [x for x in checksum_dict if len(checksum_dict[x]) == 0]:
-          if verbose_mode:
-               print('removing empty key', y)
-          checksum_dict.pop(y)
-          counter += 1
-     return counter
+
+
 
 
 def get_checksum_file_action_menu_choice():
+
+     '''Accepts and validates input from the list of file actions that may be taken against the list of duplicate
+        files for the displayed checksum
+
+     Arguments:  none
+
+     Returns: the file action choice made by the user
+
+     '''
      if chosen_checksum == -1:     #if it's -1 there is nothing left to process          
           return 'm'
      valid_choice_entered = 0
@@ -660,6 +751,16 @@ def get_checksum_file_action_menu_choice():
      
      
 def execute_checksum_file_action_choice(mychoice):          
+
+     '''Depending on the file action choice selected by the user, call the appropriate sequence of functions
+        to accomplish the task
+	Note that this function is recursive and should possibly be reworked to be non-recursive
+
+     Arguments:  the file action choise entered by the user
+
+     Returns:  none
+
+     '''
      if   mychoice == 'm':
           print('\nreturning to main menu...')
      elif mychoice == 'n': #user wants to display the next duplicate set
@@ -696,6 +797,15 @@ def execute_checksum_file_action_choice(mychoice):
 
 
 def delete_all_checksum_files():
+
+     '''This is called when the user chooses 'dall' to delete all files from the disk  matching the current checksum
+        It removes the entry from the fullfileslist list when done and pops the checksum from the dictionary
+
+     Arguments:  none
+
+     Returns:  none
+
+     '''
      if len(checksum_dict[chosen_checksum]) == 0:
           print('\nNothing to delete!')
           return
@@ -711,6 +821,16 @@ def delete_all_checksum_files():
 
 
 def delete_checksum_single_file(file_number):    
+
+     '''This is called when the user chooses to delete a single file from the list
+        It removes the file both from the fullfilelist list and checksum_dict dictionary
+	as well as removing the file from the disk
+
+     Arguments:  theh file number to delete (this is the checksum_dict key for the file)
+
+     Returns:  none
+
+     '''
      file_number -= 1    #convert to 0 based list
      print('\ndeleting ', checksum_dict[chosen_checksum][file_number])
      print()
@@ -721,6 +841,15 @@ def delete_checksum_single_file(file_number):
 
      
 def keep_one_checksum_only(file_number):    
+
+     '''Called when the user select k# to keep only one file from the list
+        It deletes from disk all but the kept file, then restores the kept file to the checksum_dict
+
+     Arguments:  the file number to keep (this is the checksum_dict key for the file)
+
+     Returns:  none
+
+     '''
      global checksum_dict
      file_number -= 1
      print()
@@ -730,12 +859,18 @@ def keep_one_checksum_only(file_number):
           move_copy_file('move', x, move_to_directory)
           remove_entry_from_fullfilelist(x)          
      print()
-     new_list = [my_saved_item]
-     checksum_dict[chosen_checksum] = new_list
-     del new_list
+     checksum_dict[chosen_checksum] = [my_saved_item] 
 
 
 def remove_entry_from_checksum_dict(my_filename):
+
+     '''Removes a filepath from the checksum_dict dictionary
+
+     Arguments:  the filepath to remove
+
+     Returns: none
+
+     '''
      global checksum_dict
      checksum_dict[chosen_checksum].remove(my_filename)
 
@@ -746,12 +881,27 @@ def remove_entry_from_checksum_dict(my_filename):
 #-----------------------------------------------------------------------------------------------------------
 
 
-def process_extension(): #handle menu item 'delete files of a particular extension'
+#this section allows the user to delete all files of a particular extension (filetype) from the
+#base filesystem.  It also allows the user to specify the maximum file size to delete
+
+
+def process_extension(): 
+
+     '''Ask the user for a file extension and maximum size
+        Call function 'get_list_of_extension' to fill list all_file_of_extension with all of the files that match the criteria
+	Ask the user to confirm that they want to proceed
+	If ok to proceed, delete all files in list all_file_of_extension else abort and return to the main menu
+
+     Arguments:  none
+
+     Returns:  none
+
+     '''
      global refresh_filelist_req
      start_pos = len(my_homedir) + 1
      my_exten = input('\nEnter extension to delete (no leading dot): ')
      my_exten = '.' + my_exten
-     valid_input = 0
+     valid_input = False
      while not valid_input:
           limit_by_size = input('Input maximum size in bytes (zero for all): ')
           try:
@@ -760,7 +910,7 @@ def process_extension(): #handle menu item 'delete files of a particular extensi
                pass
           else:
                if size_limit >= 0:
-                    valid_input = 1     
+                    valid_input = True     
      all_file_of_extension = get_list_of_extension(my_exten,size_limit)
      if len(all_file_of_extension) == 0:
           print('\nNo files found with that extension')
@@ -785,7 +935,15 @@ def process_extension(): #handle menu item 'delete files of a particular extensi
                refresh_filelist_req = 1      #filelist needs to be refreshed since we've deleted a bunch of files
      
 
-def get_list_of_extension(my_extension, size_limit):      #fill all_file_of_extension with filelist with that extension and size
+def get_list_of_extension(my_extension, size_limit):    
+
+     '''Populate list all_file_of_extension with a list of filepaths to delete based on the chosen criteria
+
+     Arguments:  the extension to delete and the maximum file size to delete 
+
+     Returns:  list all_file_of_extension (containing all filepaths to delete)
+
+     '''
      all_file_of_extension = []
      counter=0  
      for root, dirs, files in os.walk(search_directory):
@@ -807,8 +965,19 @@ def get_list_of_extension(my_extension, size_limit):      #fill all_file_of_exte
 #  Remove empty directories
 #---------------------------------------------------------------------------------------------------------------
 
+#this section just cleans up all empty directories that have no files beneath them
+
+
 
 def remove_empty_directories(root_dir=search_directory):     
+
+     '''Remove all empty directories recursively beneath the given directory
+
+     Arguments:  optional argument specifies the base filesystem to scan else defaults to the global search_directory
+
+     Returns: none
+
+     '''
      print('\nRemoving all empty directories from path', root_dir, '...')     
      for root, dirs, files in os.walk(root_dir):
           for dir in dirs:
