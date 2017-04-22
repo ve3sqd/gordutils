@@ -995,7 +995,20 @@ def remove_empty_directories(root_dir=search_directory):
 #  Display file stats
 #---------------------------------------------------------------------------------------------------------------------
 
+
+#This option allows the user to view various stats about the current base filesystem.
+#Stats include number of files, total file size, number of duplicates, etc.
+
+
 def display_file_stats():
+
+     '''Call all required functions to compute the required statistics, then print out the results
+
+     Arguments:  none
+
+     Returns:  none
+
+     '''
      global refresh_filelist_req
      refresh_filelist_req = 1
      print('\nCalculating... this may take a minute')
@@ -1017,6 +1030,14 @@ def display_file_stats():
 
 
 def calculate_checksum_stats():
+
+     '''Computer various checksum statstics
+
+     Arguments:  none
+
+     Returns:  # of unique checksum files, # of multiple checksum files, and the number of non empty checksums
+
+     '''
      unique_checksum_files = 0
      multiple_checksum_files = 0
      number_non_empty_checksums = 0
@@ -1032,6 +1053,7 @@ def calculate_checksum_stats():
 
 
 def approximate_size(size, a_kilobyte_is_1024_bytes=True):
+
     '''Convert a file size to human-readable form.
 
     Keyword arguments:
@@ -1054,6 +1076,14 @@ def approximate_size(size, a_kilobyte_is_1024_bytes=True):
     raise ValueError('number too large')
 
 def get_total_file_size():
+
+     '''Add up the sizes of all files in the base filesystem (recursive)
+
+     Arguments:  none
+
+     Returns:  The total file size
+
+     '''
      total_size = 0
      for x in fullfilelist:
           total_size += os.path.getsize(x)
