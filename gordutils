@@ -1158,6 +1158,8 @@ def get_source_and_destination():
           acting_extension = '.' + acting_extension
      return source_dir, target_dir, action_requested, acting_extension
 
+
+
 def determine_all_filetypes(source_dir, acting_extension):
 	
 	 '''Traverse the source directory recursively and add all files matching the selection
@@ -1236,11 +1238,27 @@ def move_or_copy_extension_files(target_dir, action, extension_set):
      print('\nTotal number of files found and copied/moved: ', number_moved)
      
 
+
 #-------------------------------------------------------------------------------------------------------------------
 # Move or copy files
 #-------------------------------------------------------------------------------------------------------------------
 
+
+#Allows the user to either move or copy files (all or only a particular extension)
+#Very similar to stacking except all of the files are put directly in the destination directory.
+#This option can be used to 'flatten' directory hierarchies by bringing everything up to
+#the current directory
+
+
 def move_or_copy_files():
+
+     '''Call of the required functions to do the copy/move
+
+     Arguments:  none
+
+     Returns:  none
+
+     '''
      source_dir, target_dir, action, acting_extension = get_source_and_destination()
      files_to_move = get_files_to_act_on(source_dir, acting_extension, target_dir)     
      success = create_target_if_required(target_dir)
@@ -1251,6 +1269,14 @@ def move_or_copy_files():
      
 
 def get_files_to_act_on(source_dir, acting_extension, target_dir):
+
+     '''Fill a list 'files_to_move' with all of the files that are to be copied/moved
+
+     Arguments:  The source directory (string), acting_extension (string) and the target directory (string)
+
+     Returns:  files_to_move (a list)
+
+     '''
      files_to_move = []
      counter=0   
      for root, dirs, files in os.walk(source_dir):
@@ -1274,6 +1300,14 @@ def get_files_to_act_on(source_dir, acting_extension, target_dir):
 
 
 def create_target_if_required(target_dir):
+
+     '''if necessary, create the target directory
+
+     Arguments:  the target directory to create (string)
+
+     Returns:  True if the directory was either created or already exists, false otherwise
+
+     '''
      if not os.path.isdir(target_dir):  
           try:
                os.mkdir(target_dir)
@@ -1284,6 +1318,15 @@ def create_target_if_required(target_dir):
           
      
 def do_file_moves(files_to_move, action, target_dir):
+
+     '''For each of the files in list files_to_move, call function
+        move_copy_file to do the move or copy.  Print out how many files were migrated
+
+     Arguments:  files_to_move (list), action (string containing either move or copy), target directory (string)
+
+     Returns:  none
+
+     '''
      verb = 'copying' if action == 'copy' else 'moving'
      number_moved = 0
      for x in files_to_move:
@@ -1298,7 +1341,19 @@ def do_file_moves(files_to_move, action, target_dir):
 # Change active directory
 #--------------------------------------------------------------------------------------------------------------------
 
+#Simply changes the global variable search_directory that contains the base directory for many options
+
+
 def change_active_directory():
+
+     '''''Ask the user for the base directory and set global variable search_directory to that.
+          Write the new base directory to file '~/.gordutils/gu_working_path
+
+     Arguments:  none
+
+     Returns:  none
+
+     '''
      global search_directory, refresh_filelist_req
      base_dir_exists = False
      gordutils = os.path.join(my_homedir, '.gordutils')     
@@ -1321,7 +1376,18 @@ def change_active_directory():
 #  Print working directory
 #----------------------------------------------------------------------------------------------------------------------
 
+#print out the current base directory
+
+
 def print_working_directory():
+
+     '''Print the current base directory
+
+     Arguments: none
+
+     Returns:  none
+
+     '''
      print('\nCurrent active directory: ',search_directory)
 
 
