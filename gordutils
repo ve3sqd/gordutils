@@ -1095,7 +1095,20 @@ def get_total_file_size():
 #  Stack filetypes
 #----------------------------------------------------------------------------------------------------------------------
 
+#This option allows the user to copy or moves files from any chosen directory to any other chosen directory
+#It allows migration of all files or only files of a particular extension
+#All files are 'stacked' at their destination under a folder indicating the extensions of the files within.
+
+
 def stack_filetypes():
+	
+     '''Call all required functions to stack filetypes
+     
+     Arguments:  none
+     
+     Returns:  none
+     
+     '''
      source_dir, target_dir, action, acting_extension = get_source_and_destination()
      extension_set = determine_all_filetypes(source_dir, acting_extension)
      print('extension_set is', extension_set)
@@ -1107,6 +1120,14 @@ def stack_filetypes():
 
 
 def get_source_and_destination():
+	 '''Get the source directory, the target directory, whether to copy or move, and which extension
+	    to migrate from the user.  Allow the user to type 'current' to use the current directory.
+		
+	 Arguments:  none
+	 
+	 Returns:  the source directory, target directory, requested action, and the requested extension
+	 
+	 '''
      global refresh_filelist_req
      not_found = True
      print('\nSpecify the source (where the files are coming from) directory name as an absolute path')
@@ -1138,6 +1159,15 @@ def get_source_and_destination():
      return source_dir, target_dir, action_requested, acting_extension
 
 def determine_all_filetypes(source_dir, acting_extension):
+	
+	 '''Traverse the source directory recursively and add all files matching the selection
+	    criteria to a set called extension_set
+		
+	 Arguments:  the source directory and the extension to act on
+	 
+	 Returns:  returns the set extension_set that contains all files matching the criteria
+	 
+	 '''
      extension_set = set()
      populate_fullfilelist(source_dir)     
      for x in fullfilelist:
@@ -1153,7 +1183,15 @@ def determine_all_filetypes(source_dir, acting_extension):
      return extension_set
            
                      
-def create_target_directories(target_dir, extension_set):         
+def create_target_directories(target_dir, extension_set): 
+	
+	 '''Create the target directory and all of the extension directories in it
+	 
+	 Arguments:  the target directory and the extension set set
+	 
+	 Returns:  returns True if everything was created successfully, else false
+	 
+	 '''
      if not os.path.isdir(target_dir):  
           try:
                os.mkdir(target_dir)
@@ -1171,6 +1209,15 @@ def create_target_directories(target_dir, extension_set):
 
 
 def move_or_copy_extension_files(target_dir, action, extension_set):  
+	
+	 '''Move or copy all files in set extension_set to the destination folder 
+	    under the appropriate extension folder
+		
+	 Arguments:  the target directory and the extension set set
+	 
+	 Returns:  none
+	 
+	 '''
      verb = 'copying' if action == 'copy' else 'moving'
      number_moved = 0
      for my_extension in extension_set:
