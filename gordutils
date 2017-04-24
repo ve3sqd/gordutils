@@ -1120,14 +1120,14 @@ def stack_filetypes():
 
 
 def get_source_and_destination():
-	 '''Get the source directory, the target directory, whether to copy or move, and which extension
-	    to migrate from the user.  Allow the user to type 'current' to use the current directory.
+     '''Get the source directory, the target directory, whether to copy or move, and which extension
+         to migrate from the user.  Allow the user to type 'current' to use the current directory.
 		
-	 Arguments:  none
+     Arguments:  none
 	 
-	 Returns:  the source directory, target directory, requested action, and the requested extension
+     Returns:  the source directory, target directory, requested action, and the requested extension
 	 
-	 '''
+     '''
      global refresh_filelist_req
      not_found = True
      print('\nSpecify the source (where the files are coming from) directory name as an absolute path')
@@ -1162,14 +1162,14 @@ def get_source_and_destination():
 
 def determine_all_filetypes(source_dir, acting_extension):
 	
-	 '''Traverse the source directory recursively and add all files matching the selection
-	    criteria to a set called extension_set
+     '''Traverse the source directory recursively and add all files matching the selection
+        criteria to a set called extension_set
 		
-	 Arguments:  the source directory and the extension to act on
+     Arguments:  the source directory and the extension to act on
 	 
-	 Returns:  returns the set extension_set that contains all files matching the criteria
-	 
-	 '''
+     Returns:  returns the set extension_set that contains all files matching the criteria
+ 
+     '''
      extension_set = set()
      populate_fullfilelist(source_dir)     
      for x in fullfilelist:
@@ -1187,13 +1187,13 @@ def determine_all_filetypes(source_dir, acting_extension):
                      
 def create_target_directories(target_dir, extension_set): 
 	
-	 '''Create the target directory and all of the extension directories in it
+     '''Create the target directory and all of the extension directories in it
+ 
+     Arguments:  the target directory and the extension set set
 	 
-	 Arguments:  the target directory and the extension set set
+     Returns:  returns True if everything was created successfully, else false
 	 
-	 Returns:  returns True if everything was created successfully, else false
-	 
-	 '''
+     '''
      if not os.path.isdir(target_dir):  
           try:
                os.mkdir(target_dir)
@@ -1212,14 +1212,14 @@ def create_target_directories(target_dir, extension_set):
 
 def move_or_copy_extension_files(target_dir, action, extension_set):  
 	
-	 '''Move or copy all files in set extension_set to the destination folder 
-	    under the appropriate extension folder
+     '''Move or copy all files in set extension_set to the destination folder 
+        under the appropriate extension folder
 		
-	 Arguments:  the target directory and the extension set set
+     Arguments:  the target directory and the extension set set
 	 
-	 Returns:  none
+     Returns:  none
 	 
-	 '''
+     '''
      verb = 'copying' if action == 'copy' else 'moving'
      number_moved = 0
      for my_extension in extension_set:
@@ -1396,7 +1396,25 @@ def print_working_directory():
 #  Checkout files
 #----------------------------------------------------------------------------------------------------------------------
 
+# This option allow you to specify a type of file and copy all files of that extension to a 'checkout' directory
+# You are then free to use a graphical tool to look at the files in the checkout directory.
+# This is especially useful for looking for duplicate pictures with different resolutions.
+# Once you have finished deleted everything you don't want from the checkout dir., you use the next
+# option to check the files back in.  Everything you deleted in the checkout directory is deleted in the
+# source directory you checked out from
+
+
+
 def checkout_files():
+
+     '''Fuction to call other functions to checkout the files
+        TODO:  only call write_checkout_filelist_to_disk if the was at least one file checked out
+     
+     Arguments: none
+
+     Returns:  none
+
+     '''
      keep_going = check_destination_directory()
      if keep_going:
           source_dir, requested_extension = get_source_and_extension()
@@ -1409,6 +1427,15 @@ def checkout_files():
 
 
 def check_destination_directory():
+
+     '''Checks to make sure the checkout directory is empty before beginning.  If not
+        the user can either delete the contents or abort the operation
+     
+     Arguments:  none
+
+     Returns: Returns True if it is ok to proceed with the checkout operation
+
+     '''
      # the destination directory needs to be emtpy before beginning
      myinput = ''
      target_dir = my_homedir + '/checkout_dir/'
@@ -1435,6 +1462,14 @@ def check_destination_directory():
                
 
 def get_source_and_extension():    
+
+     '''Asks the user for the source directory and the extension to check out
+
+     Arguments:  none
+
+     Returns:  the source directory (string) and the request_extension (string)
+
+     '''
      not_found = True
      print('\nSpecify the source directory to checkout the files from (as an absolute path)')
      print('Your current directory is ', os.getcwd())
@@ -1454,6 +1489,16 @@ def get_source_and_extension():
 
 
 def create_file_checkout_list(source_dir, target_dir, requested_extension):
+
+     '''Adds all files with the requested extension to the files_to_checkout list
+
+     Arguments:  The source directory (string), target dir (string),
+                 and the requested_extension (string)
+
+     Returns:  files_to_checkout (list containing all of the filepaths to copy 
+               to the destination directory
+
+     '''
      files_to_checkout = []
      counter=0   
      requested_extensions_to_copy = get_extension_list(requested_extension)
@@ -1468,6 +1513,15 @@ def create_file_checkout_list(source_dir, target_dir, requested_extension):
 
 
 def get_extension_list(requested_extension):
+
+     '''Add related extensions to the one chosen by the user
+        For example if the user types jpg, we also want to checkout jpeg files
+
+     Arguments:  requested_extension (string) supplied by the user
+
+     Returns:  requested_extension (list) containing all extensions to copy
+
+     '''
      if requested_extension.lower() in ('.jpg', '.jpeg'):
           return ['.jpg', '.jpeg']
      else:
@@ -1475,6 +1529,18 @@ def get_extension_list(requested_extension):
 
 
 def special_copy_files_to_checkout(files_to_checkout):
+
+     '''Copy all files in list files_to_checkout to the destination directory
+        This operation also appends the destination filepath to each already
+	existing filepath in the files_to_checkout list
+	After this, files_to_checkout is a list of lists, with each element
+	a source and destination filepath
+
+     Arguments:  files_to_checkout (list containing all files to copy to dest, dir.)
+
+     Returns:  count of how many files were copied
+
+     '''
      # this function copies a file from source to a destination directory
      # if the file exists it won't overwrite so we need to tack on a numeric extension to make it unique
      # it writes out the written filename to the files_to_checkout list
@@ -1500,6 +1566,15 @@ def special_copy_files_to_checkout(files_to_checkout):
 
 
 def write_checkout_filelist_to_disk(files_to_checkout):
+
+     '''After copying all of the files to the checkout directory, save the files_to_checkout list
+        to a file so it can be read when the user wants to check the files back in
+
+     Arguments:  files_to_checkout (list of lists of files to checkout and the destination filename)
+
+     Returns:  none
+
+     '''
      file_dir = os.path.join(my_homedir,'.gordutils')
      save_obj(file_dir, files_to_checkout, 'checkout_file')
      
@@ -1508,7 +1583,21 @@ def write_checkout_filelist_to_disk(files_to_checkout):
 #  Checkin files
 #----------------------------------------------------------------------------------------------------------------------
 
+# This is the 'sister' operation to checkout_files.  It simply scans the checkout directory to find out
+# which files were deleted, then deletes those same files from the source directory
+#  TODO delete the checkout_file from disk after successfully deleting all required source directory files
+
+
 def checkin_files():
+
+     '''Read the checkout list to list my_checkout_list, then for each file that is no longer
+        in the checkout directory, delete the corresponding source file from the source directory
+
+     Arguments:  none
+
+     Returns:  none
+
+     '''
      num_deleted = 0
      #load the checkout list
      file_dir = os.path.join(my_homedir,'.gordutils')
