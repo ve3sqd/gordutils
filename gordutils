@@ -1620,6 +1620,14 @@ def checkin_files():
 
 
 def save_obj(file_dir, obj, name ):
+
+     '''dump an object out to disk using pickle
+
+     Arguments:  destination directory (string), object to save (object), name of file (string)
+
+     Returns:  non
+
+     '''
      file_dir = file_dir + '/'
      with open(file_dir + name + '.pkl', 'wb') as f:
           pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
