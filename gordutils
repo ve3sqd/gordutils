@@ -1634,11 +1634,27 @@ def save_obj(file_dir, obj, name ):
      
 
 def load_obj(file_dir, name ):
+
+     '''Load an object from disk
+
+     Arguments:  directory to load from (string), name of file to load (string)
+
+     Returns:  the oject read from the disk
+
+     '''
      file_dir = file_dir + '/'
      with open(file_dir + name + '.pkl', 'rb') as f:
           return pickle.load(f)
 
 def compute_sha1(filename):
+
+     '''Compute the SHA1 checksum of a file
+
+     Arguments:  the filename to compute the checksum of (string)
+
+     Returns:  the hash (checksum)
+
+     '''
      blocksize = 65536
      hasher = hashlib.sha1()
      with open(filename, 'rb') as afile:
@@ -1650,6 +1666,15 @@ def compute_sha1(filename):
 
 
 def populate_fullfilelist(dirsearch):
+
+     '''Read all files from and below a specified path recursively into 
+        list fullfilelist
+
+     Arguments:  the directory to read in (string)
+
+     Returns:  none
+
+     '''
      global fullfilelist
      del fullfilelist[:]     
      counter=0   
@@ -1659,6 +1684,14 @@ def populate_fullfilelist(dirsearch):
              fullfilelist.append(os.path.join(root, myfile))
 
 def display_file_action_instructions():
+
+     '''Display the file action choices to the screen
+
+     Arguments:  none
+
+     Returns:  none
+
+     '''
      print('To delete a specific file, enter d#')
      print('To delete all items, enter dall')
      print('To keep only one item, enter k#')
@@ -1667,6 +1700,14 @@ def display_file_action_instructions():
 
 
 def delete_item_from_disk(item):
+
+     '''Deletes a specified file from the hard drive
+
+     Arguments:  the item (file) to delete (string)
+
+     Returns:  none
+
+     '''
      try:
           os.remove(item)  #delete the requested file from the disk
      except:
@@ -1676,6 +1717,16 @@ def delete_item_from_disk(item):
 
 
 def move_copy_file(action, item, dest_directory):
+
+     '''Moves a file from a source to a destination direcotyr
+
+     Arguments:  the action to take - copy or move (string)
+                 the item to move (string)
+		 the destination to move to
+
+     Returns:  True if successful, False otherwise
+
+     '''
      #this function moves a file from source to a destination directory
      #if the file exists it won't overwrite so we need to tack on a numeric extension to make it unique
      (dirname, filename) = os.path.split(item)   #filename is the filename only
@@ -1706,11 +1757,28 @@ def move_copy_file(action, item, dest_directory):
 
 
 def remove_entry_from_fullfilelist(entry):
+
+     '''Utility function to simply remove a filepath from list fullfilelist
+
+     Arguments:  the filepath to remove
+
+     Returns:  none
+
+     '''
      global fullfilelist
      fullfilelist.remove(entry)
 
 
 def replace_slash_with_underscore(mystring):
+
+     '''Utility function to replace all /'s in a string with underscores
+        The first and last character are removed if they are /'s
+
+     Arguments:  the string to convert (string)
+
+     Returns:  the converted string
+   
+     '''
      mystring = mystring.replace('/', '_')
      if mystring[0] == '_':
           mystring = mystring[1:]
@@ -1720,6 +1788,14 @@ def replace_slash_with_underscore(mystring):
 
 
 def play_choice(mychoice):   #launch a program to play or view the chosen file       
+
+     '''Calls either feh to display an image or ffplay to play an audio file
+
+     Arguments:  the filepath to play/display
+
+     Returns:  none
+
+     '''
      (dirname, filename) = os.path.split(mychoice)   #filename is the filename only
      shortname, extension = os.path.splitext(filename)     
      if extension.lower() in ('.jpg', '.jpeg', '.png', '.bmp', '.gif'):
@@ -1731,6 +1807,18 @@ def play_choice(mychoice):   #launch a program to play or view the chosen file
           
 
 def first_time_setup():
+
+     '''Do first time setup as necessary
+        Create directory ~/.gordutils
+	If gu_working_path already exists read it to set the working directory
+	Create ~/.gordutils/gu_working_path and populate with base directory
+	Create ~/gordutils_deleted to move deleted files to
+
+     Arguments:  none
+
+     Returns:  none
+
+     '''
      global search_directory, move_to_directory     
      base_dir_exists = False
      gordutils = os.path.join(my_homedir, '.gordutils')
@@ -1765,6 +1853,14 @@ def first_time_setup():
 
 
 if __name__ == '__main__':
+
+     '''Main function:  only executes if this module is called directly
+
+     Arguments:  none
+
+     Returns:  none
+
+     '''
      first_time_setup()
      while True:
           main_menu_choice = get_main_choice()
