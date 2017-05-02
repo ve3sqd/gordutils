@@ -978,7 +978,8 @@ def remove_empty_directories(root_dir=search_directory):
      Returns: none
 
      '''
-     print('\nRemoving all empty directories from path', root_dir, '...')     
+     dirs_removed = 0 
+     print('\nRemoving all empty directories from path', root_dir, '...')          
      for root, dirs, files in os.walk(root_dir):
           for dir in dirs:
                newdir = os.path.join(root, dir)        
@@ -988,6 +989,8 @@ def remove_empty_directories(root_dir=search_directory):
                     pass
                else:
                     print('Deleting ',newdir)         
+                    dirs_removed += 1
+     print('\nNumber empty directories deleted: ',dirs_removed)
      return
 
 
@@ -1407,8 +1410,7 @@ def print_working_directory():
 
 def checkout_files():
 
-     '''Fuction to call other functions to checkout the files
-        TODO:  only call write_checkout_filelist_to_disk if the was at least one file checked out
+     '''Function to call other functions to checkout the files
      
      Arguments: none
 
@@ -1422,8 +1424,12 @@ def checkout_files():
           print('\nThe files will be copied to directory: ', target_dir) 
           files_to_checkout = create_file_checkout_list(source_dir, target_dir, requested_extension)
           copy_count = special_copy_files_to_checkout(files_to_checkout)          
-          print('\nSuccessfully checked out', copy_count, 'files')
-          write_checkout_filelist_to_disk(files_to_checkout)
+          if not copy_count == 0:
+               print('\nSuccessfully checked out', copy_count, 'files')
+               write_checkout_filelist_to_disk(files_to_checkout)
+          else:
+               print('\nNo files found to checkout')
+               print('Checkin operation not possible')
 
 
 def check_destination_directory():
@@ -1448,11 +1454,8 @@ def check_destination_directory():
                if myinput == 'n':
                     print('\nCannot continue without empty directory.  Returning to main menu...')
                     return False
-               else:     #delete contents of checkout destination directory
-                    for x in os.listdir(target_dir):
-                         file_to_delete = os.path.join(target_dir, x)                         
-                         delete_item_from_disk(file_to_delete)
-                    delete_item_from_disk(os.path.join(my_homedir, '.gordutils', 'checkout_file.pkl'))
+               else:   #delete contents of checkout destination directory                    
+                    cleanup_checkout_dir(target_dir)                    
                     return True
           else:
                return True
@@ -1541,12 +1544,6 @@ def special_copy_files_to_checkout(files_to_checkout):
      Returns:  count of how many files were copied
 
      '''
-     # this function copies a file from source to a destination directory
-     # if the file exists it won't overwrite so we need to tack on a numeric extension to make it unique
-     # it writes out the written filename to the files_to_checkout list
-     # after all files are written, files_to_checkout will be a list of lists:
-     #  first item is the original file
-     #  second item is the destination file
      copy_count = 0
      dest_directory = my_homedir + '/checkout_dir/'
      for x in files_to_checkout:          
@@ -1585,7 +1582,6 @@ def write_checkout_filelist_to_disk(files_to_checkout):
 
 # This is the 'sister' operation to checkout_files.  It simply scans the checkout directory to find out
 # which files were deleted, then deletes those same files from the source directory
-#  TODO delete the checkout_file from disk after successfully deleting all required source directory files
 
 
 def checkin_files():
@@ -1599,8 +1595,14 @@ def checkin_files():
 
      '''
      num_deleted = 0
-     #load the checkout list
+     #check to see if the checkout files exists before trying to load it
      file_dir = os.path.join(my_homedir,'.gordutils')
+     checkout_file = os.path.join(file_dir, 'checkout_file.pkl')
+     if not os.path.exists(checkout_file):
+          print('\nCheckout file does not exist')
+          print('Nothing to do...')
+          return
+     #load the checkout list
      my_checkout_list = load_obj(file_dir, 'checkout_file')     
      # for each destination file, check if it is there
      # if it's not there, remove it from the base file system
@@ -1611,6 +1613,8 @@ def checkin_files():
                move_copy_file('move', x[0], move_to_directory)
                num_deleted += 1
      print('\nDeleted', num_deleted, 'files from source directory')
+     #delete the checkout_file and contents of checkout_dir from disk since we are done with it
+     cleanup_checkout_dir(os.path.join(my_homedir, 'checkout_dir'))
           
      
 
@@ -1805,6 +1809,25 @@ def play_choice(mychoice):   #launch a program to play or view the chosen file
           my_command = 'ffplay ' + '"' + mychoice + '"'
           os.system(my_command)
           
+
+
+def cleanup_checkout_dir(target_dir):
+
+     '''Remove the checkout_file and contents of checkout_dir 
+        to cleanup after a checkout/checkin operation
+
+     Arguments:  the target directory (the checkout directory) (string)
+
+     Returns:  none
+
+     '''
+     for x in os.listdir(target_dir):
+          file_to_delete = os.path.join(target_dir, x)
+          delete_item_from_disk(file_to_delete)
+     if os.path.exists(os.path.join(my_homedir, '.gordutils', 'checkout_file.pkl')):     
+          delete_item_from_disk(os.path.join(my_homedir, '.gordutils', 'checkout_file.pkl'))
+
+
 
 def first_time_setup():
 
