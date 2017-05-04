@@ -1600,7 +1600,7 @@ def checkin_files():
      checkout_file = os.path.join(file_dir, 'checkout_file.pkl')
      if not os.path.exists(checkout_file):
           print('\nCheckout file does not exist')
-          print('Nothing to do...')
+          print('You must use the checkout files option first...')
           return
      #load the checkout list
      my_checkout_list = load_obj(file_dir, 'checkout_file')     
