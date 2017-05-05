@@ -990,7 +990,8 @@ def remove_empty_directories(root_dir=search_directory):
                else:
                     print('Deleting ',newdir)         
                     dirs_removed += 1
-     print('\nNumber empty directories deleted: ',dirs_removed)
+     if dirs_removed == 0:
+          print('\nNo empty directories found or deleted')
      return
 
 
